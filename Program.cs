@@ -10,7 +10,6 @@ class VirtualPet
     private Random random;
     private const double Alpha = 0.1;  // Learning rate
     private const double Gamma = 0.9;  // Discount factor
-    private const double Epsilon = 0.2; // Exploration rate
     private int emotionScore = 0; // Tracks long-term emotional trends
 
     private int ignoreCounter = 0;
