@@ -13,6 +13,9 @@ class VirtualPet
     private const double Epsilon = 0.2; // Exploration rate
     private int emotionScore = 0; // Tracks long-term emotional trends
 
+    private int ignoreCounter = 0;
+    private const int ignoreThreshold = 3;
+
     private MLContext mlContext;
     private PredictionEngine<SentimentData, SentimentPrediction> sentimentEngine;
 
@@ -114,6 +117,8 @@ class VirtualPet
 
         Console.WriteLine($"Pet reacts to {action}: Reward {reward}");
         Console.WriteLine($"Pet state: {state} | Emotion Score: {emotionScore}");
+
+        ignoreCounter = 0;
     }
 
     private void UpdateState()
@@ -139,6 +144,12 @@ class VirtualPet
 
     public void ChatWithPet(string userInput)
     {
+        if (userInput == "")
+        {
+            CheckForLearning();
+            return;
+        }
+
         var prediction = sentimentEngine.Predict(new SentimentData { Text = userInput });
         string sentiment = prediction.Prediction ? "Positive" : "Negative";
         Console.WriteLine($"Pet detects sentiment: {sentiment} | Positive score: {Math.Round(prediction.Probability * 100)}%");
@@ -150,35 +161,31 @@ class VirtualPet
 
         UpdateState();
         Console.WriteLine($"Pet state: {state} | Emotion Score: {emotionScore}");
+
+        ignoreCounter = 0;
     }
 
-    public void LearnFromExperience()
+    public void CheckForLearning()
     {
-        string action = ChooseAction(state);
-        Console.WriteLine($"Pet decides to: {action}");
-        PerformAction(action);
-    }
+        ignoreCounter++;
 
-    private string ChooseAction(string currentState)
-    {
-        if (random.NextDouble() < Epsilon)
+        if (ignoreCounter >= ignoreThreshold)
         {
-            var actions = new List<string>(qTable[currentState].Keys);
-            return actions[random.Next(actions.Count)];
-        }
-        else
-        {
-            string bestAction = null;
-            double maxReward = double.MinValue;
-            foreach (var action in qTable[currentState])
-            {
-                if (action.Value > maxReward)
-                {
-                    maxReward = action.Value;
-                    bestAction = action.Key;
-                }
-            }
-            return bestAction;
+            string[] possibleActionsHappy = ["Play", "MakeNoise", "Jump"];
+            string[] possibleActionsSad = ["Whimper", "Hide", "Avoid you"];
+
+            string chosenAction;
+            if (emotionScore <= -5)
+                chosenAction = possibleActionsSad[random.Next(possibleActionsSad.Length)];
+            else if (emotionScore >= 5)
+                chosenAction = possibleActionsHappy[random.Next(possibleActionsSad.Length)];
+            else
+                chosenAction = "MakeNoise";
+
+            emotionScore -= 3;
+            Console.WriteLine($"Your pet is feeling ignored! It decides to {chosenAction}.");
+            Console.WriteLine($"Pet state: {state} | Emotion Score: {emotionScore}");
+            ignoreCounter = 0;
         }
     }
 }
@@ -201,7 +208,7 @@ class Program
     static void Main(string[] args)
     {
         VirtualPet pet = new();
-        Console.WriteLine("Interact with your virtual AI pet! Type \"Feed\", \"Play\", \"Scold\", \"Learn\" or chat with it. Type \"exit\" to exit the program.");
+        Console.WriteLine("Interact with your virtual AI pet! Type \"Feed\", \"Play\", \"Scold\" or chat with it. Type \"exit\" to exit the program.");
 
         while (true)
         {
@@ -209,8 +216,6 @@ class Program
             if (input == "exit") break;
             if (input == "Feed" || input == "Play" || input == "Scold")
                 pet.PerformAction(input);
-            else if (input == "Learn")
-                pet.LearnFromExperience();
             else
                 pet.ChatWithPet(input);
         }
