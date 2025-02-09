@@ -145,7 +145,7 @@ class VirtualPet
     {
         if (userInput == "")
         {
-            CheckForLearning();
+            CheckIfIgnored();
             return;
         }
 
@@ -164,22 +164,24 @@ class VirtualPet
         ignoreCounter = 0;
     }
 
-    public void CheckForLearning()
+    public void CheckIfIgnored()
     {
         ignoreCounter++;
 
         if (ignoreCounter >= ignoreThreshold)
         {
-            string[] possibleActionsHappy = ["Play", "MakeNoise", "Jump"];
-            string[] possibleActionsSad = ["Whimper", "Hide", "Avoid you"];
-
             string chosenAction;
+
+            string[] possibleActionsSad = ["Whimper", "Hide", "Avoid you", "Sleep"];
+            string[] possibleActionsHappy = ["Play", "Make noise", "Jump", "Spin around"];
+            string[] possibleActionsNeutral = ["Make noise", "Look at you", "Wag tail"];
+
             if (emotionScore <= -5)
                 chosenAction = possibleActionsSad[random.Next(possibleActionsSad.Length)];
             else if (emotionScore >= 5)
-                chosenAction = possibleActionsHappy[random.Next(possibleActionsSad.Length)];
+                chosenAction = possibleActionsHappy[random.Next(possibleActionsHappy.Length)];
             else
-                chosenAction = "MakeNoise";
+                chosenAction = possibleActionsNeutral[random.Next(possibleActionsNeutral.Length)];
 
             emotionScore -= 3;
             Console.WriteLine($"Your pet is feeling ignored! It decides to {chosenAction}.");
