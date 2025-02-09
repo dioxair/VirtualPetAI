@@ -41,7 +41,24 @@ internal class VirtualPet
         var model = pipeline.Fit(dataView);
         sentimentEngine = mlContext.Model.CreatePredictionEngine<SentimentData, SentimentPrediction>(model);
         Console.Clear();
+
+#if DEBUG
+        SaveModel(mlContext, model, dataView, "PetSentimentAnalysisModel.zip");
+#endif
     }
+
+#if DEBUG
+    public static void SaveModel(MLContext mlContext, ITransformer model, IDataView data, string modelSavePath)
+    {
+        // Pull the data schema from the IDataView used for training the model
+        DataViewSchema dataViewSchema = data.Schema;
+
+        using (var fs = File.Create(modelSavePath))
+        {
+            mlContext.Model.Save(model, dataViewSchema, fs);
+        }
+    }
+#endif
 
     public void PerformAction(string action)
     {

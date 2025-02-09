@@ -1,17 +1,12 @@
 ﻿using Microsoft.ML.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace VirtualPetAI.ML
 {
     public class SentimentDataProvider
     {
-        // Instance property
         public List<SentimentData> SampleData { get; } =
         [
+            // Positive Sentiments
             new SentimentData { Text = "I love you, buddy!", Label = true },
             new SentimentData { Text = "You're the best pet ever!", Label = true },
             new SentimentData { Text = "Such a cute and smart little creature!", Label = true },
