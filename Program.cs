@@ -7,7 +7,7 @@ class VirtualPet
 {
     private Dictionary<string, Dictionary<string, double>> qTable;
     private string state;
-    private Random random;
+    private Random random = new Random();
     private const double Alpha = 0.1;  // Learning rate
     private const double Gamma = 0.9;  // Discount factor
     private int emotionScore = 0; // Tracks long-term emotional trends
@@ -30,7 +30,6 @@ class VirtualPet
             { "Tired", new Dictionary<string, double>{{"Feed", 2}, {"Play", -1}, {"Scold", -3}} }
         };
         state = "Neutral";
-        random = new Random();
 
         // I need to get more sample data.
         var sampleData = new List<SentimentData>
