@@ -75,7 +75,6 @@ internal class VirtualPet
 
         UpdateState();
 
-        // Q-learning update rule:
         // Q(s, a) = (1 - Alpha) * Q(s, a) + Alpha * (reward + Gamma * maxFutureReward)
         //
         // Explanation:
