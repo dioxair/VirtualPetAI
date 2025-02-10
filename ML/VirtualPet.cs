@@ -137,10 +137,7 @@ internal class VirtualPet
 
     private double GetMaxFutureReward(string newState)
     {
-        double maxReward = double.MinValue;
-        foreach (var reward in qTable[newState].Values)
-            if (reward > maxReward)
-                maxReward = reward;
+        double maxReward = qTable[newState].Values.Prepend(double.MinValue).Max();
         return maxReward == double.MinValue ? 0 : maxReward;
     }
 
