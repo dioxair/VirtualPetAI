@@ -50,7 +50,7 @@ internal class VirtualPet
 
         mlContext = new MLContext();
         IDataView dataView =
-            mlContext.Data.LoadFromTextFile<SentimentData>("training.tsv", separatorChar: '\t', hasHeader: true);
+            mlContext.Data.LoadFromTextFile<SentimentData>("ML/Training/TrainingData.tsv", separatorChar: '\t', hasHeader: true);
 
         var pipeline = mlContext.Transforms.Text.FeaturizeText("Features", nameof(SentimentData.Text))
             .Append(mlContext.Transforms.Conversion.MapValueToKey("Label"))

@@ -8,6 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="ML\Training\TrainingData.tsv" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="ML\Training\TrainingData.tsv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.ML" Version="4.0.1" />
   </ItemGroup>
 
