@@ -20,19 +20,20 @@ internal class VirtualPet
     private readonly PredictionEngine<SentimentData, SentimentPrediction> sentimentEngine;
     private string state;
 
+    private readonly HashSet<string> positiveActions = ["Feed", "Play", "Pet", "Praise"];
+    private readonly HashSet<string> negativeActions = ["Scold", "Yell", "Take away toy"];
+
     public VirtualPet()
     {
         SentimentDataProvider provider = new();
 
-        qTable = new Dictionary<string, Dictionary<string, double>>
-        {
-            { "Happy", new Dictionary<string, double> { { "Feed", 5 }, { "Play", 4 }, { "Scold", -5 } } },
-            { "Sad", new Dictionary<string, double> { { "Feed", 3 }, { "Play", 5 }, { "Scold", -2 } } },
-            { "Excited", new Dictionary<string, double> { { "Feed", 4 }, { "Play", 6 }, { "Scold", -7 } } },
-            { "Grumpy", new Dictionary<string, double> { { "Feed", 2 }, { "Play", -2 }, { "Scold", -6 } } },
-            { "Neutral", new Dictionary<string, double> { { "Feed", 3 }, { "Play", 3 }, { "Scold", -3 } } },
-            { "Tired", new Dictionary<string, double> { { "Feed", 2 }, { "Play", -1 }, { "Scold", -3 } } }
-        };
+        qTable = new Dictionary<string, Dictionary<string, double>> {
+        { "Happy", new() { { "Feed", 5 }, { "Play", 4 }, { "Pet", 6 }, { "Praise", 5 }, { "Scold", -5 }, { "Yell", -4 }, { "Take away toy", -6 } } },
+        { "Sad", new() { { "Feed", 3 }, { "Play", 5 }, { "Pet", 4 }, { "Praise", 3 }, { "Scold", -2 }, { "Yell", -5 }, { "Take away toy", -4 } } },
+        { "Excited", new() { { "Feed", 4 }, { "Play", 6 }, { "Pet", 7 }, { "Praise", 6 }, { "Scold", -7 }, { "Yell", -5 }, { "Take away toy", -8 } } },
+        { "Grumpy", new() { { "Feed", 2 }, { "Play", -2 }, { "Pet", 3 }, { "Praise", 2 }, { "Scold", -6 }, { "Yell", -4 }, { "Take away toy", -5 } } },
+        { "Neutral", new() { { "Feed", 3 }, { "Play", 3 }, { "Pet", 4 }, { "Praise", 3 }, { "Scold", -3 }, { "Yell", -3 }, { "Take away toy", -3 } } },
+        { "Tired", new() { { "Feed", 2 }, { "Play", -1 }, { "Pet", 3 }, { "Praise", 2 }, { "Scold", -3 }, { "Yell", -4 }, { "Take away toy", -5 } } } };
         state = "Neutral";
 
         ignoredActionsQTable = new Dictionary<string, double>
@@ -83,6 +84,17 @@ internal class VirtualPet
         }
 
         double reward = qTable[state][action];
+
+        if (positiveActions.Contains(action))
+        {
+            reward = Math.Abs(reward); // Ensure positive reward
+        }
+        else if (negativeActions.Contains(action))
+        {
+            reward = -Math.Abs(reward); // Ensure negative reward
+        }
+
+        // Modify reward scaling based on emotional state
         reward *= Math.Max(0.5, 1.0 + (emotionScore / 50.0));
 
         emotionScore += (int)reward;
@@ -96,22 +108,28 @@ internal class VirtualPet
 
         if (lastIgnoredAction != null)
         {
-            ignoredActionsQTable[lastIgnoredAction] = (1 - Alpha) * ignoredActionsQTable[lastIgnoredAction] + Alpha * 2;
+            double ignoredReward = positiveActions.Contains(action) ? 2 : -2;
+            ignoredActionsQTable[lastIgnoredAction] =
+                (1 - Alpha) * ignoredActionsQTable[lastIgnoredAction] + Alpha * ignoredReward;
+
             Console.WriteLine(
-                $"Your pet's ignored action '{lastIgnoredAction}' successfully engaged you! Rewarding...");
+                $"Your pet's ignored action '{lastIgnoredAction}' {(ignoredReward > 0 ? "positively engaged you! Rewarding..." : "was negative. Penalizing...")}");
+            Console.WriteLine($"Pet state: {state} | Emotion Score: {emotionScore}");
+
             lastIgnoredAction = null;
         }
 
         ignoreCounter = 0;
     }
 
+
     private void UpdateState()
     {
         if (emotionScore >= 15) state = "Excited";
         else if (emotionScore >= 5) state = "Happy";
-        else if (emotionScore <= -5) state = "Sad";
-        else if (emotionScore <= -10) state = "Grumpy";
         else if (emotionScore <= -15) state = "Tired";
+        else if (emotionScore <= -10) state = "Grumpy";
+        else if (emotionScore <= -5) state = "Sad";
         else state = "Neutral";
     }
 
@@ -126,7 +144,7 @@ internal class VirtualPet
 
     public void ChatWithPet(string userInput)
     {
-        if (userInput == "")
+        if (userInput == "" || userInput == "Ignore")
         {
             CheckIfIgnored();
             return;
