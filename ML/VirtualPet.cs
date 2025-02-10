@@ -50,7 +50,7 @@ internal class VirtualPet
         };
 
         mlContext = new MLContext();
-        var dataView = mlContext.Data.LoadFromEnumerable(provider.SampleData);
+        IDataView? dataView = mlContext.Data.LoadFromEnumerable(provider.SampleData);
         var pipeline = mlContext.Transforms.Text.FeaturizeText("Features", nameof(SentimentData.Text))
             .Append(mlContext.BinaryClassification.Trainers.SdcaLogisticRegression());
 
@@ -65,14 +65,12 @@ internal class VirtualPet
     }
 
 #if DEBUG
-    public static void SaveModel(MLContext mlContext, ITransformer model, IDataView data, string modelSavePath)
+    private static void SaveModel(MLContext mlContext, ITransformer model, IDataView data, string modelSavePath)
     {
         DataViewSchema dataViewSchema = data.Schema;
 
-        using (var fs = File.Create(modelSavePath))
-        {
-            mlContext.Model.Save(model, dataViewSchema, fs);
-        }
+        using FileStream fs = File.Create(modelSavePath);
+        mlContext.Model.Save(model, dataViewSchema, fs);
     }
 #endif
 
@@ -100,7 +98,7 @@ internal class VirtualPet
         {
             ignoredActionsQTable[lastIgnoredAction] = (1 - Alpha) * ignoredActionsQTable[lastIgnoredAction] + Alpha * 2;
             Console.WriteLine(
-                $"Your pet’s ignored action '{lastIgnoredAction}' successfully engaged you! Rewarding...");
+                $"Your pet's ignored action '{lastIgnoredAction}' successfully engaged you! Rewarding...");
             lastIgnoredAction = null;
         }
 
@@ -110,10 +108,10 @@ internal class VirtualPet
     private void UpdateState()
     {
         if (emotionScore >= 15) state = "Excited";
-        else if (emotionScore <= -10) state = "Grumpy";
         else if (emotionScore >= 5) state = "Happy";
         else if (emotionScore <= -5) state = "Sad";
-        else if (emotionScore < -15) state = "Tired";
+        else if (emotionScore <= -10) state = "Grumpy";
+        else if (emotionScore <= -15) state = "Tired";
         else state = "Neutral";
     }
 
