@@ -50,7 +50,7 @@ internal class VirtualPet
 
         mlContext = new MLContext();
         IDataView dataView =
-            mlContext.Data.LoadFromTextFile<SentimentData>("training.tsv", separatorChar: '\t', hasHeader: true);
+            mlContext.Data.LoadFromTextFile<SentimentData>("training_large.tsv", separatorChar: '\t', hasHeader: true);
 
         var pipeline = mlContext.Transforms.Text.FeaturizeText("Features", nameof(SentimentData.Text))
             .Append(mlContext.Transforms.Conversion.MapValueToKey("Label"))
@@ -137,10 +137,7 @@ internal class VirtualPet
 
     private double GetMaxFutureReward(string newState)
     {
-        double maxReward = double.MinValue;
-        foreach (var reward in qTable[newState].Values)
-            if (reward > maxReward)
-                maxReward = reward;
+        double maxReward = qTable[newState].Values.Prepend(double.MinValue).Max();
         return maxReward == double.MinValue ? 0 : maxReward;
     }
 
