@@ -5,11 +5,14 @@ namespace VirtualPetAI.ML;
 internal class VirtualPet
 {
     private const double Alpha = 0.1; // Learning rate
+    private const double Epsilon = 0.2; // Exploration rate
     private const double Gamma = 0.9; // Discount factor
     private const int ignoreThreshold = 3;
     private int emotionScore; // Tracks long-term emotional trends
 
     private int ignoreCounter;
+    private readonly Dictionary<string, double> ignoredActionsQTable;
+    private string lastIgnoredAction; // Store the last ignored-response action
 
     private readonly MLContext mlContext;
     private readonly Dictionary<string, Dictionary<string, double>> qTable;
@@ -32,6 +35,20 @@ internal class VirtualPet
         };
         state = "Neutral";
 
+        ignoredActionsQTable = new Dictionary<string, double>
+        {
+            { "Whimper", 0 },
+            { "Hide", 0 },
+            { "Avoid you", 0 },
+            { "Sleep", 0 },
+            { "Play", 0 },
+            { "Make noise", 0 },
+            { "Jump", 0 },
+            { "Spin around", 0 },
+            { "Look at you", 0 },
+            { "Wag tail", 0 }
+        };
+
         mlContext = new MLContext();
         var dataView = mlContext.Data.LoadFromEnumerable(provider.SampleData);
         var pipeline = mlContext.Transforms.Text.FeaturizeText("Features", nameof(SentimentData.Text))
@@ -50,7 +67,6 @@ internal class VirtualPet
 #if DEBUG
     public static void SaveModel(MLContext mlContext, ITransformer model, IDataView data, string modelSavePath)
     {
-        // Pull the data schema from the IDataView used for training the model
         DataViewSchema dataViewSchema = data.Schema;
 
         using (var fs = File.Create(modelSavePath))
@@ -69,36 +85,24 @@ internal class VirtualPet
         }
 
         double reward = qTable[state][action];
+        reward *= Math.Max(0.5, 1.0 + (emotionScore / 50.0));
 
-        // Update emotion score based on action
         emotionScore += (int)reward;
-
         UpdateState();
 
-        // Q(s, a) = (1 - Alpha) * Q(s, a) + Alpha * (reward + Gamma * maxFutureReward)
-        //
-        // Explanation:
-        // - Q(s, a) represents the expected future reward for taking action 'a' in state 's'.
-        // - Alpha (α) is the learning rate (0 < α ≤ 1), which controls how much new information overrides old Q-values.
-        //   - If α is close to 0, learning is slow (old experiences dominate).
-        //   - If α is close to 1, learning is fast (new experiences dominate).
-        // - reward is the immediate reward received after taking action 'a' in state 's'.
-        // - Gamma (γ) is the discount factor (0 ≤ γ ≤ 1), which determines how much future rewards matter:
-        //   - If γ = 0, the agent only considers immediate rewards.
-        //   - If γ is close to 1, the agent values future rewards more.
-        // - maxFutureReward is the highest Q-value of the next possible state (i.e., best possible future reward).
-        //
-        // Breakdown of each term:
-        // 1. (1 - Alpha) * Q(s, a) -> Keeps some of the old Q-value to prevent drastic changes.
-        // 2. reward -> Adds the immediate reward for taking action 'a'.
-        // 3. Gamma * maxFutureReward -> Encourages the agent to take actions that lead to better long-term rewards.
-        //
-        // The formula **blends old knowledge with new experiences**, slowly refining the Q-values to optimize decision-making.
         double maxFutureReward = GetMaxFutureReward(state);
         qTable[state][action] = (1 - Alpha) * qTable[state][action] + Alpha * (reward + Gamma * maxFutureReward);
 
         Console.WriteLine($"Pet reacts to {action}: Reward {reward}");
         Console.WriteLine($"Pet state: {state} | Emotion Score: {emotionScore}");
+
+        if (lastIgnoredAction != null)
+        {
+            ignoredActionsQTable[lastIgnoredAction] = (1 - Alpha) * ignoredActionsQTable[lastIgnoredAction] + Alpha * 2;
+            Console.WriteLine(
+                $"Your pet’s ignored action '{lastIgnoredAction}' successfully engaged you! Rewarding...");
+            lastIgnoredAction = null;
+        }
 
         ignoreCounter = 0;
     }
@@ -140,6 +144,16 @@ internal class VirtualPet
         else
             emotionScore -= 3;
 
+        if (lastIgnoredAction != null)
+        {
+            double reward = sentiment == "Positive" ? 2 : -1;
+            ignoredActionsQTable[lastIgnoredAction] =
+                (1 - Alpha) * ignoredActionsQTable[lastIgnoredAction] + Alpha * reward;
+
+            Console.WriteLine($"Your pet’s ignored action '{lastIgnoredAction}' received a reward of {reward}.");
+            lastIgnoredAction = null;
+        }
+
         UpdateState();
         Console.WriteLine($"Pet state: {state} | Emotion Score: {emotionScore}");
 
@@ -152,20 +166,17 @@ internal class VirtualPet
 
         if (ignoreCounter >= ignoreThreshold)
         {
+            // Epsilon-Greedy Algorithm
             string chosenAction;
-
-            string[] possibleActionsSad = ["Whimper", "Hide", "Avoid you", "Sleep"];
-            string[] possibleActionsHappy = ["Play", "Make noise", "Jump", "Spin around"];
-            string[] possibleActionsNeutral = ["Make noise", "Look at you", "Wag tail"];
-
-            if (emotionScore <= -5)
-                chosenAction = possibleActionsSad[random.Next(possibleActionsSad.Length)];
-            else if (emotionScore >= 5)
-                chosenAction = possibleActionsHappy[random.Next(possibleActionsHappy.Length)];
+            if (random.NextDouble() < Epsilon)
+                chosenAction = ignoredActionsQTable.Keys.ElementAt(random.Next(ignoredActionsQTable.Count));
             else
-                chosenAction = possibleActionsNeutral[random.Next(possibleActionsNeutral.Length)];
+                chosenAction = ignoredActionsQTable.Aggregate((x, y) => x.Value > y.Value ? x : y).Key;
 
-            emotionScore -= 3;
+            lastIgnoredAction = chosenAction; // Store for potential reward
+
+            emotionScore -= 3; // Pet feels ignored
+            UpdateState();
             Console.WriteLine($"Your pet is feeling ignored! It decides to {chosenAction}.");
             Console.WriteLine($"Pet state: {state} | Emotion Score: {emotionScore}");
             ignoreCounter = 0;
