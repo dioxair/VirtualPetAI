@@ -51,9 +51,12 @@ internal class VirtualPet
         };
 
         mlContext = new MLContext();
-        IDataView? dataView = mlContext.Data.LoadFromEnumerable(provider.SampleData);
+        IDataView dataView = mlContext.Data.LoadFromEnumerable(provider.SampleData);
+
         var pipeline = mlContext.Transforms.Text.FeaturizeText("Features", nameof(SentimentData.Text))
-            .Append(mlContext.BinaryClassification.Trainers.SdcaLogisticRegression());
+            .Append(mlContext.Transforms.Conversion.MapValueToKey("Label"))
+            .Append(mlContext.MulticlassClassification.Trainers.SdcaMaximumEntropy())
+            .Append(mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
 
         Console.WriteLine("Training model...");
         var model = pipeline.Fit(dataView);
@@ -144,36 +147,31 @@ internal class VirtualPet
 
     public void ChatWithPet(string userInput)
     {
-        if (userInput == "" || userInput == "Ignore")
+        if (string.IsNullOrEmpty(userInput) || userInput == "Ignore")
         {
             CheckIfIgnored();
             return;
         }
 
-        var prediction = sentimentEngine.Predict(new SentimentData { Text = userInput });
-        string sentiment = prediction.Prediction ? "Positive" : "Negative";
-        Console.WriteLine(
-            $"Pet detects sentiment: {sentiment} | Positive score: {Math.Round(prediction.Probability * 100)}%");
+        SentimentPrediction prediction = sentimentEngine.Predict(new SentimentData { Text = userInput });
+        Console.WriteLine($"Pet detects sentiment: {prediction.Prediction}");
+        Console.WriteLine($"Positive score: {Math.Round(prediction.Score[0] * 100)}% | Neutral score: {Math.Round(prediction.Score[1] * 100)}% | Negative score: {Math.Round(prediction.Score[2] * 100)}%");
 
-        if (sentiment == "Positive")
-            emotionScore += 3;
-        else
-            emotionScore -= 3;
-
-        if (lastIgnoredAction != null)
+        switch (prediction.Prediction)
         {
-            double reward = sentiment == "Positive" ? 2 : -1;
-            ignoredActionsQTable[lastIgnoredAction] =
-                (1 - Alpha) * ignoredActionsQTable[lastIgnoredAction] + Alpha * reward;
-
-            Console.WriteLine($"Your pet’s ignored action '{lastIgnoredAction}' received a reward of {reward}.");
-            lastIgnoredAction = null;
+            case "Positive":
+                emotionScore += 3;
+                break;
+            case "Neutral":
+                emotionScore += 0;
+                break;
+            case "Negative":
+                emotionScore -= 3;
+                break;
         }
 
         UpdateState();
         Console.WriteLine($"Pet state: {state} | Emotion Score: {emotionScore}");
-
-        ignoreCounter = 0;
     }
 
     public void CheckIfIgnored()
