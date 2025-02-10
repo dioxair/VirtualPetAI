@@ -25,8 +25,6 @@ internal class VirtualPet
 
     public VirtualPet()
     {
-        SentimentDataProvider provider = new();
-
         qTable = new Dictionary<string, Dictionary<string, double>> {
         { "Happy", new() { { "Feed", 5 }, { "Play", 4 }, { "Pet", 6 }, { "Praise", 5 }, { "Scold", -5 }, { "Yell", -4 }, { "Take away toy", -6 } } },
         { "Sad", new() { { "Feed", 3 }, { "Play", 5 }, { "Pet", 4 }, { "Praise", 3 }, { "Scold", -2 }, { "Yell", -5 }, { "Take away toy", -4 } } },
@@ -51,7 +49,8 @@ internal class VirtualPet
         };
 
         mlContext = new MLContext();
-        IDataView dataView = mlContext.Data.LoadFromEnumerable(provider.SampleData);
+        IDataView dataView =
+            mlContext.Data.LoadFromTextFile<SentimentData>("training.tsv", separatorChar: '\t', hasHeader: true);
 
         var pipeline = mlContext.Transforms.Text.FeaturizeText("Features", nameof(SentimentData.Text))
             .Append(mlContext.Transforms.Conversion.MapValueToKey("Label"))
@@ -155,7 +154,8 @@ internal class VirtualPet
 
         SentimentPrediction prediction = sentimentEngine.Predict(new SentimentData { Text = userInput });
         Console.WriteLine($"Pet detects sentiment: {prediction.Prediction}");
-        Console.WriteLine($"Positive score: {Math.Round(prediction.Score[0] * 100)}% | Neutral score: {Math.Round(prediction.Score[1] * 100)}% | Negative score: {Math.Round(prediction.Score[2] * 100)}%");
+        Console.WriteLine(
+            $"Positive score: {Math.Round(prediction.Score[0] * 100, 1)}% | Neutral score: {Math.Round(prediction.Score[1] * 100, 1)}% | Negative score: {Math.Round(prediction.Score[2] * 100, 1)}%");
 
         switch (prediction.Prediction)
         {
